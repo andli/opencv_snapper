@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">OpenCV_snapper</string>
+    <string name="action_settings">Settings</string>
+</resources>
