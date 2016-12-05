@@ -1,6 +1,7 @@
 package com.example.an_ehs.opencv_snapper;
 
 import android.content.Intent;
+import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
@@ -26,7 +27,7 @@ import org.opencv.imgproc.Imgproc;
 public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBarChangeListener  {
 
     static final int REQUEST_IMAGE_CAPTURE = 1;
-    static final int REQUEST_VIDEO_CAPTURE = 1;
+    static final int IMAGE_DOWNSAMPLE_SCALE = 4;
 
     private ImageView mImageView;
     private Bitmap imageBitmap;
@@ -61,7 +62,16 @@ public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBar
                 if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
                     startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
                 }*/
-                mImageView.setImageResource(R.mipmap.testboard01);
+                Log.d("TEST", "Value: " + mImageView.getMeasuredWidth());
+                mImageView.setImageBitmap(
+                        decodeSampledBitmapFromResource(getResources(),
+                                R.drawable.testboard,
+                                mImageView.getMeasuredWidth() / IMAGE_DOWNSAMPLE_SCALE,
+                                mImageView.getMeasuredHeight() / IMAGE_DOWNSAMPLE_SCALE));
+                imageBitmap = decodeSampledBitmapFromResource(getResources(),
+                        R.drawable.testboard,
+                        mImageView.getMeasuredWidth() / IMAGE_DOWNSAMPLE_SCALE,
+                        mImageView.getMeasuredHeight() / IMAGE_DOWNSAMPLE_SCALE);
                 if (!seekBar.isEnabled()) seekBar.setEnabled(true);
             }
         });
@@ -69,13 +79,14 @@ public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBar
 
     private void initViews(){
         mImageView = (ImageView)findViewById(R.id.mImageView);
-        imageBitmap = BitmapFactory.decodeResource(getResources(),R.drawable.ic_crop_original_black_24dp);
-        mImageView.setImageBitmap(imageBitmap);
+        //imageBitmap = BitmapFactory.decodeResource(getResources(),R.drawable.ic_crop_original_black_24dp);
+        //mImageView.setImageBitmap(imageBitmap);
         seekBar.setOnSeekBarChangeListener(this);
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        // After taking a camera shot
         if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
             Bundle extras = data.getExtras();
             imageBitmap = (Bitmap) extras.get("data");
@@ -105,7 +116,7 @@ public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBar
 
         return super.onOptionsItemSelected(item);
     }
-    
+
     private Bitmap manipulateBitmap(Bitmap bitmap, int value){
 
         Log.d(TAG, " Filtering ... ");
@@ -152,5 +163,44 @@ public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBar
     @Override
     public void onStopTrackingTouch(SeekBar seekBar) {
 
+    }
+
+    public static int calculateInSampleSize(
+            BitmapFactory.Options options, int reqWidth, int reqHeight) {
+        // Raw height and width of image
+        final int height = options.outHeight;
+        final int width = options.outWidth;
+        int inSampleSize = 1;
+
+        if (height > reqHeight || width > reqWidth) {
+
+            final int halfHeight = height / 2;
+            final int halfWidth = width / 2;
+
+            // Calculate the largest inSampleSize value that is a power of 2 and keeps both
+            // height and width larger than the requested height and width.
+            while ((halfHeight / inSampleSize) >= reqHeight
+                    && (halfWidth / inSampleSize) >= reqWidth) {
+                inSampleSize *= 2;
+            }
+        }
+
+        return inSampleSize;
+    }
+
+    public static Bitmap decodeSampledBitmapFromResource(Resources res, int resId,
+                                                         int reqWidth, int reqHeight) {
+
+        // First decode with inJustDecodeBounds=true to check dimensions
+        final BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        BitmapFactory.decodeResource(res, resId, options);
+
+        // Calculate inSampleSize
+        options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
+
+        // Decode bitmap with inSampleSize set
+        options.inJustDecodeBounds = false;
+        return BitmapFactory.decodeResource(res, resId, options);
     }
 }
