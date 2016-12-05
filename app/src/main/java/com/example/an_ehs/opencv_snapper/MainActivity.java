@@ -32,20 +32,16 @@ public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBar
     private ImageView mImageView;
     private Bitmap imageBitmap;
     private SeekBar seekBar;
+    private Ricochet ricochetAnalyzer;
 
     private static final String TAG = "MainActivity";
-
-    static {
-        if(!OpenCVLoader.initDebug()){
-            Log.d(TAG, "OpenCV not loaded");
-        } else {
-            Log.d(TAG, "OpenCV loaded");
-        }
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        ricochetAnalyzer = new Ricochet();
+
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         mImageView = (ImageView) findViewById(R.id.mImageView);
@@ -62,7 +58,6 @@ public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBar
                 if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
                     startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
                 }*/
-                Log.d("TEST", "Value: " + mImageView.getMeasuredWidth());
                 mImageView.setImageBitmap(
                         decodeSampledBitmapFromResource(getResources(),
                                 R.drawable.testboard,
@@ -117,41 +112,11 @@ public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBar
         return super.onOptionsItemSelected(item);
     }
 
-    private Bitmap manipulateBitmap(Bitmap bitmap, int value){
 
-        Log.d(TAG, " Filtering ... ");
-        Mat src = new Mat(bitmap.getHeight(),bitmap.getWidth(), CvType.CV_8UC1);
-        Mat src_gray = new Mat(bitmap.getHeight(),bitmap.getWidth(), CvType.CV_8UC1);
-        Mat dst = new Mat(bitmap.getHeight(),bitmap.getWidth(), CvType.CV_8UC1);
-        Utils.bitmapToMat(bitmap,src,true);
-        //src.convertTo(src,-1,1,value);
-        
-        // Convert to grayscale
-        Imgproc.cvtColor(src, src_gray, Imgproc.COLOR_RGB2GRAY);
-
-        // Improve contrast?
-        Imgproc.equalizeHist(src_gray,src_gray);
-
-        //blur image
-        Size s = new Size(5,5);
-        Imgproc.GaussianBlur(src_gray, src_gray, s, 0);
-
-        /*//apply adaptive treshold
-        Imgproc.adaptiveThreshold( src_gray, src_gray, 255, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY,value,2);
-
-        //adding secondary treshold, removes a lot of noise
-        Imgproc.threshold(src_gray, dst, 0, 255, Imgproc.THRESH_BINARY + Imgproc.THRESH_OTSU);*/
-        
-        Imgproc.adaptiveThreshold(src_gray, dst, 75, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY, 7,  value);
-
-        Bitmap result = Bitmap.createBitmap(dst.cols(),dst.rows(), Bitmap.Config.ARGB_8888);
-        Utils.matToBitmap(dst,result);
-        return result;
-    }
 
     @Override
     public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-        Bitmap edited = manipulateBitmap(imageBitmap, progress);
+        Bitmap edited = ricochetAnalyzer.manipulateBitmap(imageBitmap, progress);
         mImageView.setImageBitmap(edited);
     }
 
