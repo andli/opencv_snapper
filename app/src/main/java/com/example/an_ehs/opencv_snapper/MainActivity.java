@@ -3,6 +3,7 @@ package com.example.an_ehs.opencv_snapper;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.design.widget.FloatingActionButton;
@@ -19,6 +20,7 @@ import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
 public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBarChangeListener  {
@@ -55,10 +57,12 @@ public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBar
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                /*Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
                 if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
                     startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
-                }
+                }*/
+                mImageView.setImageResource(R.mipmap.testboard01);
+                if (!seekBar.isEnabled()) seekBar.setEnabled(true);
             }
         });
     }
@@ -101,18 +105,33 @@ public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBar
 
         return super.onOptionsItemSelected(item);
     }
-
-
-
+    
     private Bitmap manipulateBitmap(Bitmap bitmap, int value){
 
         Log.d(TAG, " Filtering ... ");
         Mat src = new Mat(bitmap.getHeight(),bitmap.getWidth(), CvType.CV_8UC1);
+        Mat src_gray = new Mat(bitmap.getHeight(),bitmap.getWidth(), CvType.CV_8UC1);
         Mat dst = new Mat(bitmap.getHeight(),bitmap.getWidth(), CvType.CV_8UC1);
         Utils.bitmapToMat(bitmap,src,true);
         //src.convertTo(src,-1,1,value);
-        Imgproc.cvtColor(src, src, Imgproc.COLOR_RGB2GRAY);
-        Imgproc.adaptiveThreshold(src, dst, 50, Imgproc.ADAPTIVE_THRESH_MEAN_C, Imgproc.THRESH_BINARY, 5,  value);
+        
+        // Convert to grayscale
+        Imgproc.cvtColor(src, src_gray, Imgproc.COLOR_RGB2GRAY);
+
+        // Improve contrast?
+        Imgproc.equalizeHist(src_gray,src_gray);
+
+        //blur image
+        Size s = new Size(5,5);
+        Imgproc.GaussianBlur(src_gray, src_gray, s, 0);
+
+        /*//apply adaptive treshold
+        Imgproc.adaptiveThreshold( src_gray, src_gray, 255, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY,value,2);
+
+        //adding secondary treshold, removes a lot of noise
+        Imgproc.threshold(src_gray, dst, 0, 255, Imgproc.THRESH_BINARY + Imgproc.THRESH_OTSU);*/
+        
+        Imgproc.adaptiveThreshold(src_gray, dst, 75, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY, 7,  value);
 
         Bitmap result = Bitmap.createBitmap(dst.cols(),dst.rows(), Bitmap.Config.ARGB_8888);
         Utils.matToBitmap(dst,result);

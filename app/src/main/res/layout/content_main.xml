@@ -13,19 +13,16 @@
     tools:context="com.example.an_ehs.opencv_snapper.MainActivity"
     tools:showIn="@layout/activity_main">
 
-    <SeekBar
-        android:layout_alignParentTop="true"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:id="@+id/seekBar" />
-
     <ImageView
-        android:layout_alignTop="@+id/seekBar"
-        android:layout_alignParentEnd="true"
+        android:layout_alignParentTop="true"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:id="@+id/mImageView"/>
-        //app:srcCompat="@drawable/ic_crop_original_black_24dp"/>
-        //android:tint="@color/sectraGrey"/>
 
+    <SeekBar
+        android:layout_alignTop="@+id/mImageView"
+        android:layout_alignParentEnd="true"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/seekBar" />
 </RelativeLayout>
