@@ -35,10 +35,12 @@ public class Ricochet {
 
     public Ricochet() {}
 
-    public Bitmap manipulateBitmap(Bitmap bitmap, int value){
+    public Bitmap manipulateBitmap(Bitmap bitmap, int value1, int value2, int value3){
 
-        int val = ValMax(value, 255);
-        Log.d(TAG, " Filtering with value " + val);
+        int val1 = ValMax(value1, 255);
+        int val2 = ValMax(value2, 13);
+        int val3 = ValMax(value3, 255);
+        Log.d(TAG, " Filtering with values " + val1 + ", " + val2 + ", " + val3);
         Mat src = new Mat(bitmap.getHeight(),bitmap.getWidth(), CvType.CV_8UC1);
         Mat src_gray = new Mat(bitmap.getHeight(),bitmap.getWidth(), CvType.CV_8UC1);
         Mat src_hsv = new Mat(bitmap.getHeight(),bitmap.getWidth(), CvType.CV_8UC1);
@@ -49,63 +51,58 @@ public class Ricochet {
         Utils.bitmapToMat(bitmap,src,true);
         //src.convertTo(src,-1,1,value);
 
-        Imgproc.cvtColor(src, src_hsv, Imgproc.COLOR_RGB2HSV);
-        Core.inRange(src_hsv, new Scalar(331, 18, 89), new Scalar(333, 208, 186),  src_hsv);
-        //Core.inRange(src_hsv, new Scalar(25, 23, 74), new Scalar(27, 31, 62), src_hsv);
-        dst = src_hsv.clone();
+        Imgproc.cvtColor(src, src_hsv, Imgproc.COLOR_BGR2HSV);
+        Core.inRange(src_hsv, new Scalar(107, 0, 0), new Scalar(255, 76, 255),  src_thresh);
 
-        // Convert to grayscale
-        List<Mat> hsv_channel = new ArrayList<Mat>();
-        Core.split( src_hsv, hsv_channel );
-        try
-        {
-            hsv_channel.get(0).setTo(new Scalar(145));
-
-            Log.v(TAG, "Got the Channel!");
-        }
-        catch(Exception ex)
-        {
-            ex.printStackTrace();
-            Log.v(TAG, "Didn't get any channel");
-        }
-        //dst = hsv_channel.get(0).setTo(new Scalar(145));
-
-/*
-
-        Imgproc.cvtColor(src, src_gray, Imgproc.COLOR_RGB2GRAY);
         // Improve contrast?
-        Imgproc.equalizeHist(src_gray,src_gray);
+        Imgproc.equalizeHist(src_thresh,src_thresh);
 
         //blur image
-        Size s = new Size(5,5);
-        Imgproc.GaussianBlur(src_gray, src_gray, s, 0);
-/*
-        Imgproc.adaptiveThreshold( src_gray, src_gray, 255, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY,value,2);
+        int sizeElement = 5;
+        Size s = new Size(sizeElement,sizeElement);
+        Imgproc.GaussianBlur(src_thresh, src_thresh, s, 0);
 
-        //adding secondary treshold, removes a lot of noise
-        Imgproc.threshold(src_gray, dst, 0, 255, Imgproc.THRESH_BINARY + Imgproc.THRESH_OTSU);*//*
-*/
-/*
+        for(int i = 0; i<6; i++) {
+            Imgproc.dilate(src_thresh, src_thresh, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, s));
+        }
+        for(int i = 0; i<6; i++) {
+            Imgproc.erode(src_thresh, src_thresh, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, s));
+        }
 
-        Imgproc.adaptiveThreshold(src_gray, src_thresh, 245, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY, 7,  4);
+        Imgproc.adaptiveThreshold(src_thresh, src_thresh, 255, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY, 7,  4);
+        Core.bitwise_not(src_thresh,src_thresh);
 
-        Imgproc.erode(src_thresh, src_thresh, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(13,13)));
-        Imgproc.dilate(src_thresh, src_thresh, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(13,13)));
+
 
         // Find the contours of the board
         List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
         Mat hierarchy = new Mat();
         Imgproc.findContours(src_thresh, contours, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
-        //Imgproc.drawContours(dst, contours, -1, new Scalar(255, 255, 255), 1);
-        Imgproc.drawContours(dst, contours, val, new Scalar(255, 255, 255), 2);
+        double maxVal = 0;
+        int maxValIdx = 1;
+        for (int contourIdx = 0; contourIdx < contours.size(); contourIdx++)
+        {
+            double contourArea = Imgproc.contourArea(contours.get(contourIdx));
+            if (maxVal < contourArea)
+            {
+                maxVal = contourArea;
+                maxValIdx = contourIdx;
+            }
+        }
 
-           1 rect = cv2.minAreaRect(cnt)
+        Imgproc.cvtColor(src_thresh, dst, Imgproc.COLOR_GRAY2BGR);
+        Imgproc.drawContours(dst, contours, maxValIdx, new Scalar(0,255,0), 5);
+/*
+        //Imgproc.drawContours(dst, contours, val, new Scalar(255, 255, 255), 2);
+
+          /* 1 rect = cv2.minAreaRect(cnt)
     2 box = cv2.boxPoints(rect)
     3 box = np.int0(box)
     4 cv2.drawContours(img,[box],0,(0,0,255),2)
 
         //dst = src_thresh.clone();*/
 
+        // Convert to color
         Bitmap result = Bitmap.createBitmap(dst.cols(),dst.rows(), Bitmap.Config.ARGB_8888);
         Utils.matToBitmap(dst,result);
         return result;

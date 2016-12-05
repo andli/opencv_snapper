@@ -31,7 +31,9 @@ public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBar
 
     private ImageView mImageView;
     private Bitmap imageBitmap;
-    private SeekBar seekBar;
+    private SeekBar seekBar1;
+    private SeekBar seekBar2;
+    private SeekBar seekBar3;
     private Ricochet ricochetAnalyzer;
 
     private static final String TAG = "MainActivity";
@@ -45,9 +47,13 @@ public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBar
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         mImageView = (ImageView) findViewById(R.id.mImageView);
-        seekBar = (SeekBar)findViewById(R.id.seekBar);
+        seekBar1 = (SeekBar)findViewById(R.id.seekBar1);
+        seekBar2 = (SeekBar)findViewById(R.id.seekBar2);
+        seekBar3 = (SeekBar)findViewById(R.id.seekBar3);
         setSupportActionBar(toolbar);
-        seekBar.setEnabled(false);
+        seekBar1.setEnabled(false);
+        seekBar2.setEnabled(false);
+        seekBar3.setEnabled(false);
         initViews();
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
@@ -67,7 +73,9 @@ public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBar
                         R.drawable.testboard,
                         mImageView.getMeasuredWidth() / IMAGE_DOWNSAMPLE_SCALE,
                         mImageView.getMeasuredHeight() / IMAGE_DOWNSAMPLE_SCALE);
-                if (!seekBar.isEnabled()) seekBar.setEnabled(true);
+                if (!seekBar1.isEnabled()) seekBar1.setEnabled(true);
+                if (!seekBar2.isEnabled()) seekBar2.setEnabled(true);
+                if (!seekBar3.isEnabled()) seekBar3.setEnabled(true);
             }
         });
     }
@@ -76,7 +84,9 @@ public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBar
         mImageView = (ImageView)findViewById(R.id.mImageView);
         //imageBitmap = BitmapFactory.decodeResource(getResources(),R.drawable.ic_crop_original_black_24dp);
         //mImageView.setImageBitmap(imageBitmap);
-        seekBar.setOnSeekBarChangeListener(this);
+        seekBar1.setOnSeekBarChangeListener(this);
+        seekBar2.setOnSeekBarChangeListener(this);
+        seekBar3.setOnSeekBarChangeListener(this);
     }
 
     @Override
@@ -86,7 +96,9 @@ public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBar
             Bundle extras = data.getExtras();
             imageBitmap = (Bitmap) extras.get("data");
             mImageView.setImageBitmap(imageBitmap);
-            if (!seekBar.isEnabled()) seekBar.setEnabled(true);
+            if (!seekBar1.isEnabled()) seekBar1.setEnabled(true);
+            if (!seekBar2.isEnabled()) seekBar2.setEnabled(true);
+            if (!seekBar3.isEnabled()) seekBar3.setEnabled(true);
         }
     }
 
@@ -116,8 +128,9 @@ public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBar
 
     @Override
     public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-        Bitmap edited = ricochetAnalyzer.manipulateBitmap(imageBitmap, progress);
+        Bitmap edited = ricochetAnalyzer.manipulateBitmap(imageBitmap, seekBar1.getProgress(), seekBar2.getProgress(), seekBar3.getProgress());
         mImageView.setImageBitmap(edited);
+
     }
 
     @Override
@@ -130,8 +143,7 @@ public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBar
 
     }
 
-    public static int calculateInSampleSize(
-            BitmapFactory.Options options, int reqWidth, int reqHeight) {
+    public static int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
         // Raw height and width of image
         final int height = options.outHeight;
         final int width = options.outWidth;
