@@ -100,16 +100,42 @@ public class Ricochet {
         Mat lines = new Mat();
         // 1, 2, rho, theta,                        threshold, minLineLength, maxLineGap
         if (val1 == 0) val1 = 1;
-        Log.d(TAG, "bw: " + bitmap.getWidth());
-        HoughLinesP(src_cnt, lines, 2, Math.PI / 180, bitmap.getWidth() / 2, bitmap.getWidth() / 16, bitmap.getWidth() / 40);
+        Log.d(TAG, "bitmap width: " + bitmap.getWidth());
+        HoughLines(src_cnt, lines, 2, Math.PI / 180, bitmap.getWidth() / 2);//, bitmap.getWidth() / 16, bitmap.getWidth() / 40);
 
         Log.d(TAG, "lines: " + lines.rows());
 
         cvtColor(src_cnt, src_cnt, COLOR_GRAY2BGR);
-        for(int i = 0; i < lines.rows(); i++) {
+        /*for(int i = 0; i < lines.rows(); i++) {
             double[] val = lines.get(i, 0);
+            Log.d(TAG, "line: " + val.length);
             line(src_cnt, new Point(val[0], val[1]), new Point(val[2], val[3]), new Scalar(255, 0, 255), 3);
+        }*/
+        Scalar color = new Scalar(255, 0, 255);
+
+        double[] data;
+        double rho, theta;
+        Point pt1 = new Point();
+        Point pt2 = new Point();
+        double a, b;
+        double x0, y0;
+        for (int i = 0; i < lines.rows(); i++)
+        {
+            data = lines.get(i, 0);
+            rho = data[0];
+            theta = data[1];
+            a = Math.cos(theta);
+            b = Math.sin(theta);
+            x0 = a*rho;
+            y0 = b*rho;
+            pt1.x = Math.round(x0 + 2000*(-b));
+            pt1.y = Math.round(y0 + 2000*a);
+            pt2.x = Math.round(x0 - 2000*(-b));
+            pt2.y = Math.round(y0 - 2000 *a);
+            line(src_cnt, pt1, pt2, color, 3);
         }
+
+
 
         dst = src_cnt.clone();
 
