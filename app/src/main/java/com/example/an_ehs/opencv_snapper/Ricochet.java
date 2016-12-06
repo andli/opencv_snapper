@@ -111,14 +111,20 @@ public class Ricochet {
             Log.d(TAG, "line: " + val.length);
             line(src_cnt, new Point(val[0], val[1]), new Point(val[2], val[3]), new Scalar(255, 0, 255), 3);
         }*/
-        Scalar color = new Scalar(255, 0, 255);
+        Scalar colorPurple = new Scalar(255, 0, 255);
+        Scalar colorGreen = new Scalar(0, 255, 0);
 
+        ArrayList<Point[]> allLines = new ArrayList<>();
+        ArrayList<Point> intersectPoints = new ArrayList<>();
+
+        // Draw the lines
         double[] data;
         double rho, theta;
         Point pt1 = new Point();
         Point pt2 = new Point();
         double a, b;
         double x0, y0;
+        int scaleFactor = bitmap.getWidth() * 2;
         for (int i = 0; i < lines.rows(); i++)
         {
             data = lines.get(i, 0);
@@ -128,40 +134,56 @@ public class Ricochet {
             b = Math.sin(theta);
             x0 = a*rho;
             y0 = b*rho;
-            pt1.x = Math.round(x0 + 2000*(-b));
-            pt1.y = Math.round(y0 + 2000*a);
-            pt2.x = Math.round(x0 - 2000*(-b));
-            pt2.y = Math.round(y0 - 2000 *a);
-            line(src_cnt, pt1, pt2, color, 3);
+            pt1.x = Math.round(x0 + scaleFactor*(-b));
+            pt1.y = Math.round(y0 + scaleFactor*a);
+            pt2.x = Math.round(x0 - scaleFactor*(-b));
+            pt2.y = Math.round(y0 - scaleFactor *a);
+            line(src_cnt, pt1, pt2, colorPurple, 3);
+            allLines.add(new Point[]{pt1, pt2});
+        }
+
+        // Draw the intersection points
+        for (int i = 0; i < allLines.size(); i++)
+        {
+            Point[] outerPoint = allLines.get(i);
+
+            for (int j = i + 1; j < allLines.size(); j++)
+            {
+                Point[] innerPoint = allLines.get(j);
+                Point pt = lineIntersect(
+                        (int)(outerPoint[0].x),(int)(outerPoint[0].y),
+                        (int)(outerPoint[1].x),(int)(outerPoint[1].y),
+                        (int)(outerPoint[2].x),(int)(outerPoint[2].y),
+                        (int)(outerPoint[3].x),(int)(outerPoint[3].y));
+                if (pt != null)
+                {
+                    intersectPoints.add(pt);
+                    circle(src_cnt, pt, 16, colorGreen);
+                }
+            }
         }
 
 
-
+        // Return
         dst = src_cnt.clone();
-
         Bitmap result = Bitmap.createBitmap(dst.cols(),dst.rows(), Bitmap.Config.ARGB_8888);
         Utils.matToBitmap(dst,result);
         return result;
     }
 
-    private void drawMinAreaRect(Mat src_thresh, Mat dst, MatOfPoint largestContour) {
-        MatOfPoint2f cnt2f = new MatOfPoint2f();
-        largestContour.convertTo(largestContour, CvType.CV_32F);
+    public static Point lineIntersect(int x1, int y1, int x2, int y2, int x3, int y3, int x4, int y4) {
+        double denom = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
+        if (denom == 0.0) { // Lines are parallel.
+            return null;
+        }
+        double ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3))/denom;
+        double ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3))/denom;
+        if (ua >= 0.0f && ua <= 1.0f && ub >= 0.0f && ub <= 1.0f) {
+            // Get the intersection point.
+            return new Point((int) (x1 + ua*(x2 - x1)), (int) (y1 + ua*(y2 - y1)));
+        }
 
-        RotatedRect rect = minAreaRect(largestContour);
-        Log.d(TAG, rect.toString());
-
-        cvtColor(src_thresh, dst, COLOR_GRAY2BGR);
-        Point[] points = new Point[4];
-        rect.points(points);
-        MatOfPoint points2 = new MatOfPoint(points);
-        drawLines(dst, points2, true, new Scalar(255,0,0));
-    }
-
-    static void drawLines(Mat img, MatOfPoint points, boolean isClosed, Scalar color) {
-        List<MatOfPoint> pointsArray = new ArrayList<MatOfPoint>();
-        pointsArray.add(points);
-        polylines(img, pointsArray, isClosed, color);
+        return null;
     }
 
     public Mat warp(Mat inputMat,Mat startM) {
