@@ -142,6 +142,8 @@ public class Ricochet {
             allLines.add(new Point[]{pt1, pt2});
         }
 
+
+
         // Draw the intersection points
         for (int i = 0; i < allLines.size(); i++)
         {
@@ -153,16 +155,17 @@ public class Ricochet {
                 Point pt = lineIntersect(
                         (int)(outerPoint[0].x),(int)(outerPoint[0].y),
                         (int)(outerPoint[1].x),(int)(outerPoint[1].y),
-                        (int)(outerPoint[2].x),(int)(outerPoint[2].y),
-                        (int)(outerPoint[3].x),(int)(outerPoint[3].y));
+                        (int)(innerPoint[0].x),(int)(innerPoint[0].y),
+                        (int)(innerPoint[1].x),(int)(innerPoint[1].y));
                 if (pt != null)
                 {
+                    Log.d(TAG, "ipoint: " + pt.toString());
                     intersectPoints.add(pt);
                     circle(src_cnt, pt, 16, colorGreen);
                 }
             }
         }
-
+        Log.d(TAG, "ipoints size: " + intersectPoints.size());
 
         // Return
         dst = src_cnt.clone();
