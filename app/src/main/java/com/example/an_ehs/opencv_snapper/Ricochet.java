@@ -10,11 +10,14 @@ import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.Point;
+import org.opencv.core.RotatedRect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.utils.Converters;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import static org.opencv.imgproc.Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C;
@@ -40,6 +43,7 @@ import static org.opencv.imgproc.Imgproc.findContours;
 import static org.opencv.imgproc.Imgproc.getPerspectiveTransform;
 import static org.opencv.imgproc.Imgproc.getStructuringElement;
 import static org.opencv.imgproc.Imgproc.line;
+import static org.opencv.imgproc.Imgproc.putText;
 import static org.opencv.imgproc.Imgproc.warpPerspective;
 
 /**
@@ -49,6 +53,7 @@ import static org.opencv.imgproc.Imgproc.warpPerspective;
 public class Ricochet {
 
     private static final String TAG = "Ricochet";
+    private Point CENTER;
 
     static {
         if (!OpenCVLoader.initDebug()) {
@@ -67,11 +72,13 @@ public class Ricochet {
         int val2 = ValMax(value2, 32);
         int val3 = ValMax(value3, 255);
         Log.d(TAG, " Filtering with values " + val1 + ", " + val2 + ", " + val3);
+        CENTER = new Point(bitmap.getWidth() / 2, bitmap.getHeight() / 2);
+
         Mat src = new Mat(bitmap.getHeight(), bitmap.getWidth(), CvType.CV_8UC1);
         Mat src_hsv = new Mat(bitmap.getHeight(), bitmap.getWidth(), CvType.CV_8UC1);
         Mat src_thresh = new Mat(bitmap.getHeight(), bitmap.getWidth(), CvType.CV_8UC1);
         Mat src_cnt = new Mat(bitmap.getHeight(), bitmap.getWidth(), CvType.CV_8UC1);
-        Mat dst = new Mat(bitmap.getHeight(), bitmap.getWidth(), CvType.CV_8UC1);
+        Mat dst = null;
         Utils.bitmapToMat(bitmap, src, true);
         //src.convertTo(src,-1,1,value);
 
@@ -119,7 +126,7 @@ public class Ricochet {
         // 1, 2, rho, theta,                        threshold, minLineLength, maxLineGap
         if (val1 == 0) val1 = 1;
         Log.d(TAG, "bitmap width: " + bitmap.getWidth());
-        HoughLines(src_cnt, lines, 2, Math.PI / 180, bitmap.getWidth() / 2);//, bitmap.getWidth() / 16, bitmap.getWidth() / 40);
+        HoughLines(src_cnt, lines, 2, 1.7 * Math.PI / 180, bitmap.getWidth() / 2);//, bitmap.getWidth() / 16, bitmap.getWidth() / 40);
 
         cvtColor(src_cnt, src_cnt, COLOR_GRAY2BGR);
         /*for(int i = 0; i < lines.rows(); i++) {
@@ -129,6 +136,7 @@ public class Ricochet {
         }*/
         Scalar colorPurple = new Scalar(255, 0, 255);
         Scalar colorGreen = new Scalar(0, 255, 0);
+        Scalar colorYellow = new Scalar(255, 255, 0);
 
         ArrayList<Point[]> allLines = new ArrayList<>();
         ArrayList<Point> intersectPoints = new ArrayList<>();
@@ -155,93 +163,156 @@ public class Ricochet {
             pt2.y = Math.round(y0 - scaleFactor * a);
             line(src_cnt, pt1, pt2, colorPurple, 5);
 
-            //allLines.add(new Point[]{ new Point(x0 - b, y0 + a), new Point(x0 + b, y0 - a) });
-            allLines.add(new Point[]{pt1, pt2});
+            allLines.add(new Point[]{new Point(x0 - b, y0 + a), new Point(x0 + b, y0 - a)});
         }
-        allLines.add(new Point[]{new Point(-100, -100), new Point(200, 200)});
-        allLines.add(new Point[]{new Point(100, 200), new Point(400, 100)});
-
         Log.d(TAG, "all lines: " + allLines.size());
 
+        int ptNum = 1;
         // Draw the intersection points
         for (int i = 0; i < allLines.size(); i++) {
             Point[] outerLine = allLines.get(i);
-            Log.d(TAG, "first line pt1: " + outerLine[0].x + ", " + outerLine[0].y + "  first line pt2: " + outerLine[1].x + ", " + outerLine[1].y);
 
             for (int j = i + 1; j < allLines.size(); j++) {
                 Point[] innerLine = allLines.get(j);
-                Log.d(TAG, "second line pt1: " + innerLine[0].x + ", " + innerLine[0].y + "  second line pt2: " + innerLine[1].x + ", " + innerLine[1].y);
-                boolean intersects = intersects(outerLine[0], outerLine[1], innerLine[0], innerLine[1]);
 
-                if (intersects) {
-                    Point pt = getIntersectionPoint(outerLine[0], outerLine[1], innerLine[0], innerLine[1]);
-                    intersectPoints.add(pt);
-                    circle(src_cnt, pt, 16, colorGreen, 3);
+                Point pt = getIntersectionPoint(outerLine[0], outerLine[1], innerLine[0], innerLine[1]);
+                if (pt != null) {
+                    //Log.d(TAG, "first line pt1: " + outerLine[0].x + ", " + outerLine[0].y + "  first line pt2: " + outerLine[1].x + ", " + outerLine[1].y);
+                    //Log.d(TAG, "second line pt1: " + innerLine[0].x + ", " + innerLine[0].y + "  second line pt2: " + innerLine[1].x + ", " + innerLine[1].y);
+                    boolean added = addPointFiltered(intersectPoints, pt);
+
+                    if (added) {
+                        circle(src_cnt, pt, 16, colorGreen, 5);
+                        //putText(src_cnt, String.valueOf(ptNum), new Point(pt.x - 30, pt.y + 80), Core.FONT_HERSHEY_PLAIN, 4, colorGreen, 5);
+                        ptNum = ptNum + 1;
+                    }
                 }
             }
         }
         Log.d(TAG, "intersects points: " + intersectPoints.size());
 
+        Bitmap result;
+        if (intersectPoints.size() == 4) {
+            // Reorder points
+            ArrayList<Point> sortedPoints = orderRectCorners(intersectPoints);
+            ptNum = 1;
+            for (int i = 0; i < sortedPoints.size(); i++) {
+                putText(src_cnt, String.valueOf(ptNum), new Point(sortedPoints.get(i).x - 30, sortedPoints.get(i).y + 80), Core.FONT_HERSHEY_PLAIN, 4, colorYellow, 5);
+                ptNum++;
+            }
+            // Warp the image
+            result = warp(bitmap, sortedPoints.get(0), sortedPoints.get(1), sortedPoints.get(2), sortedPoints.get(3));
+            return result;
+
+        }
+        else {
+            throw new NullPointerException();
+        }
         // Return
-        dst = src_cnt.clone();
-        Bitmap result = Bitmap.createBitmap(dst.cols(), dst.rows(), Bitmap.Config.ARGB_8888);
+        /*dst = src_cnt.clone();
+        result = Bitmap.createBitmap(dst.cols(), dst.rows(), Bitmap.Config.ARGB_8888);
         Utils.matToBitmap(dst, result);
-        return result;
+        return result;*/
+    }
+
+    // top-left = 0; top-right = 1;
+    // right-bottom = 2; left-bottom = 3;
+    private ArrayList<Point> orderRectCorners(ArrayList<Point> corners) {
+        if (corners.size() == 4) {
+            ArrayList<Point> ordCorners = orderPointsByRows(corners);
+
+            if (ordCorners.get(0).x > ordCorners.get(1).x) { // swap points
+                Point tmp = ordCorners.get(0);
+                ordCorners.set(0, ordCorners.get(1));
+                ordCorners.set(1, tmp);
+            }
+
+            if (ordCorners.get(2).x < ordCorners.get(3).x) { // swap points
+                Point tmp = ordCorners.get(2);
+                ordCorners.set(2, ordCorners.get(3));
+                ordCorners.set(3, tmp);
+            }
+            return ordCorners;
+        }
+        return null;
+    }
+
+    private ArrayList<Point> orderPointsByRows(ArrayList<Point> points) {
+        Collections.sort(points, new Comparator<Point>() {
+            public int compare(Point p1, Point p2) {
+                if (p1.y < p2.y) return -1;
+                if (p1.y > p2.y) return 1;
+                return 0;
+            }
+        });
+        return points;
+    }
+
+    private boolean addPointFiltered(ArrayList<Point> list, Point newPoint) {
+        final int NEAR_THRESHOLD = 10;
+        boolean tooClose = false;
+        if (newPoint.x < 0 || newPoint.y < 0) {
+            return false;
+        }
+        for (Point pt : list) {
+            if (Math.abs(pt.x - newPoint.x) < NEAR_THRESHOLD && Math.abs(pt.y - newPoint.y) < NEAR_THRESHOLD) {
+                //Log.d(TAG, "skipped " + Math.abs(pt.x - newPoint.x));
+                //Log.d(TAG, "skipped " + Math.abs(pt.y - newPoint.y));
+                return false;
+            }
+        }
+
+        //Log.d(TAG, "added " + newPoint.toString());
+        list.add(newPoint);
+        return true;
     }
 
     private Point getIntersectionPoint(Point point1, Point point2, Point point3, Point point4) {
         final double EPSILON = 0.00001;
 
-        double a1 = (point1.x - point2.y) / (double) (point1.x - point2.x);
+        //Log.d(TAG, "Checking..." + point1 + "," + point2 + "," + point3 + "," + point4);
+
+        double a1 = (point1.y - point2.y) / (double) (point1.x - point2.x);
         double b1 = point1.y - a1 * point1.x;
 
         double a2 = (point3.y - point4.y) / (double) (point3.x - point4.x);
         double b2 = point3.y - a2 * point3.x;
 
         if (Math.abs(a1 - a2) < EPSILON)
-            throw new ArithmeticException();
+            return null;
 
         double x = (b2 - b1) / (a1 - a2);
         double y = a1 * x + b1;
         return new Point(x, y);
     }
 
-    public static int orientation(Point p, Point q, Point r) {
-        double val = (q.y - p.y) * (r.x - q.x)
-                - (q.x - p.x) * (r.y - q.y);
+    private Bitmap warp(Bitmap image, Point topLeft, Point topRight, Point bottomRight, Point bottomLeft) {
+        int resultWidth = (int) (topRight.x - topLeft.x);
+        int bottomWidth = (int) (bottomRight.x - bottomLeft.x);
+        if (bottomWidth > resultWidth)
+            resultWidth = bottomWidth;
 
-        if (val == 0.0)
-            return 0; // colinear
-        return (val > 0) ? 1 : 2; // clock or counterclock wise
-    }
+        int resultHeight = (int) (bottomLeft.y - topLeft.y);
+        int bottomHeight = (int) (bottomRight.y - topRight.y);
+        if (bottomHeight > resultHeight)
+            resultHeight = bottomHeight;
 
-    public static boolean intersects(Point p1, Point q1, Point p2, Point q2) {
+        Mat inputMat = new Mat(image.getHeight(), image.getHeight(), CvType.CV_8UC1);
+        Utils.bitmapToMat(image, inputMat);
+        Mat outputMat = new Mat(resultWidth, resultHeight, CvType.CV_8UC1);
 
-        int o1 = orientation(p1, q1, p2);
-        int o2 = orientation(p1, q1, q2);
-        int o3 = orientation(p2, q2, p1);
-        int o4 = orientation(p2, q2, q1);
-
-        Log.d(TAG, "..." + p1 + "," + q1 + "," + p2 + "," + q2);
-        Log.d(TAG, "..." + o1 + "," + o2 + "," + o3 + "," + o4);
-
-        if (o1 != o2 && o3 != o4)
-            return true;
-
-        return false;
-    }
-
-    public Mat warp(Mat inputMat, Mat startM) {
-        int resultWidth = 1000;
-        int resultHeight = 1000;
-
-        Mat outputMat = new Mat(resultWidth, resultHeight, CvType.CV_8UC4);
+        List<Point> source = new ArrayList<>();
+        source.add(topLeft);
+        source.add(topRight);
+        source.add(bottomLeft);
+        source.add(bottomRight);
+        Mat startM = Converters.vector_Point2f_to_Mat(source);
 
         Point ocvPOut1 = new Point(0, 0);
-        Point ocvPOut2 = new Point(0, resultHeight);
-        Point ocvPOut3 = new Point(resultWidth, resultHeight);
-        Point ocvPOut4 = new Point(resultWidth, 0);
-        List<Point> dest = new ArrayList<Point>();
+        Point ocvPOut2 = new Point(resultWidth, 0);
+        Point ocvPOut3 = new Point(0, resultHeight);
+        Point ocvPOut4 = new Point(resultWidth, resultHeight);
+        List<Point> dest = new ArrayList<>();
         dest.add(ocvPOut1);
         dest.add(ocvPOut2);
         dest.add(ocvPOut3);
@@ -250,13 +321,11 @@ public class Ricochet {
 
         Mat perspectiveTransform = getPerspectiveTransform(startM, endM);
 
-        warpPerspective(inputMat,
-                outputMat,
-                perspectiveTransform,
-                new Size(resultWidth, resultHeight),
-                INTER_CUBIC);
+        warpPerspective(inputMat, outputMat, perspectiveTransform, new Size(resultWidth, resultHeight));
 
-        return outputMat;
+        Bitmap output = Bitmap.createBitmap(resultWidth, resultHeight, Bitmap.Config.ARGB_8888);
+        Utils.matToBitmap(outputMat, output);
+        return output;
     }
 
     private static int ValMax(int value, int max) {
