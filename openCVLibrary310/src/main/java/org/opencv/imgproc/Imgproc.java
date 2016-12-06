@@ -689,7 +689,7 @@ public class Imgproc {
     //
 
     //javadoc: minAreaRect(points)
-    public static RotatedRect minAreaRect(MatOfPoint2f points)
+    public static RotatedRect minAreaRect(MatOfPoint points)
     {
         Mat points_mat = points;
         RotatedRect retVal = new RotatedRect(minAreaRect_0(points_mat.nativeObj));
