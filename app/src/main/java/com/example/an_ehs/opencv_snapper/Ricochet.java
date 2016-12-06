@@ -149,31 +149,29 @@ public class Ricochet {
             b = Math.sin(theta);
             x0 = a * rho;
             y0 = b * rho;
-            pt1.x = x0 + scaleFactor * (-b);
-            pt1.y = y0 + scaleFactor * a;
-            pt2.x = x0 - scaleFactor * (-b);
-            pt2.y = y0 - scaleFactor * a;
-            line(src_cnt, pt1, pt2, colorPurple, 3);
+            pt1.x = Math.round(x0 + scaleFactor * (-b));
+            pt1.y = Math.round(y0 + scaleFactor * a);
+            pt2.x = Math.round(x0 - scaleFactor * (-b));
+            pt2.y = Math.round(y0 - scaleFactor * a);
+            line(src_cnt, pt1, pt2, colorPurple, 5);
 
-            allLines.add(new Point[]{
-                    new Point(x0 - b, y0 + a),
-                    new Point(x0 + b, y0 - a)
-            });
-            //allLines.add(new Point[]{pt1, pt2});
-
+            //allLines.add(new Point[]{ new Point(x0 - b, y0 + a), new Point(x0 + b, y0 - a) });
+            allLines.add(new Point[]{pt1, pt2});
         }
+        allLines.add(new Point[]{new Point(-100, -100), new Point(200, 200)});
+        allLines.add(new Point[]{new Point(100, 200), new Point(400, 100)});
 
         Log.d(TAG, "all lines: " + allLines.size());
 
         // Draw the intersection points
         for (int i = 0; i < allLines.size(); i++) {
             Point[] outerLine = allLines.get(i);
-            Log.d(TAG, "first line pt1: " + outerLine[0].x + ", " + outerLine[0].y + "first line pt2: " + outerLine[1].x + ", " + outerLine[1].y);
+            Log.d(TAG, "first line pt1: " + outerLine[0].x + ", " + outerLine[0].y + "  first line pt2: " + outerLine[1].x + ", " + outerLine[1].y);
 
             for (int j = i + 1; j < allLines.size(); j++) {
                 Point[] innerLine = allLines.get(j);
-                Log.d(TAG, "second line pt1: " + innerLine[0].x + ", " + innerLine[0].y + "second line pt2: " + innerLine[1].x + ", " + innerLine[1].y);
-                boolean intersects = intersect(outerLine[0], outerLine[1], innerLine[0], innerLine[1]);
+                Log.d(TAG, "second line pt1: " + innerLine[0].x + ", " + innerLine[0].y + "  second line pt2: " + innerLine[1].x + ", " + innerLine[1].y);
+                boolean intersects = intersects(outerLine[0], outerLine[1], innerLine[0], innerLine[1]);
 
                 if (intersects) {
                     Point pt = getIntersectionPoint(outerLine[0], outerLine[1], innerLine[0], innerLine[1]);
@@ -182,7 +180,7 @@ public class Ricochet {
                 }
             }
         }
-        Log.d(TAG, "intersect points: " + intersectPoints.size());
+        Log.d(TAG, "intersects points: " + intersectPoints.size());
 
         // Return
         dst = src_cnt.clone();
@@ -217,12 +215,15 @@ public class Ricochet {
         return (val > 0) ? 1 : 2; // clock or counterclock wise
     }
 
-    public static boolean intersect(Point p1, Point q1, Point p2, Point q2) {
+    public static boolean intersects(Point p1, Point q1, Point p2, Point q2) {
 
         int o1 = orientation(p1, q1, p2);
         int o2 = orientation(p1, q1, q2);
         int o3 = orientation(p2, q2, p1);
         int o4 = orientation(p2, q2, q1);
+
+        Log.d(TAG, "..." + p1 + "," + q1 + "," + p2 + "," + q2);
+        Log.d(TAG, "..." + o1 + "," + o2 + "," + o3 + "," + o4);
 
         if (o1 != o2 && o3 != o4)
             return true;
