@@ -206,7 +206,7 @@ public class Ricochet {
 
         }
         else {
-            throw new NullPointerException();
+            return null;
         }
         // Return
         /*dst = src_cnt.clone();

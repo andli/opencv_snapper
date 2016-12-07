@@ -4,37 +4,40 @@ import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.drawable.BitmapDrawable;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.design.widget.FloatingActionButton;
+import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
-import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.ImageView;
 import android.widget.SeekBar;
 
-import org.opencv.android.OpenCVLoader;
-import org.opencv.android.Utils;
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-import org.opencv.core.Size;
-import org.opencv.imgproc.Imgproc;
+import java.io.File;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
-public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBarChangeListener  {
+public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBarChangeListener {
 
     static final int REQUEST_IMAGE_CAPTURE = 1;
+    static final int REQUEST_TAKE_PHOTO = 1;
     static final int IMAGE_DOWNSAMPLE_SCALE = 4;
 
     private ImageView mImageView;
+    private String mCurrentPhotoPath;
     private Bitmap imageBitmap;
     private SeekBar seekBar1;
     private SeekBar seekBar2;
     private SeekBar seekBar3;
     private Ricochet ricochetAnalyzer;
+    private boolean testMode;
 
     private static final String TAG = "MainActivity";
 
@@ -47,32 +50,37 @@ public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBar
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         mImageView = (ImageView) findViewById(R.id.mImageView);
-        seekBar1 = (SeekBar)findViewById(R.id.seekBar1);
-        seekBar2 = (SeekBar)findViewById(R.id.seekBar2);
-        seekBar3 = (SeekBar)findViewById(R.id.seekBar3);
+        seekBar1 = (SeekBar) findViewById(R.id.seekBar1);
+        seekBar2 = (SeekBar) findViewById(R.id.seekBar2);
+        seekBar3 = (SeekBar) findViewById(R.id.seekBar3);
         setSupportActionBar(toolbar);
         seekBar1.setEnabled(false);
         seekBar2.setEnabled(false);
         seekBar3.setEnabled(false);
+        testMode = false;
         initViews();
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                /*Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-                if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
-                    startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
-                }*/
-                mImageView.setImageBitmap(
-                        decodeSampledBitmapFromResource(getResources(),
-                                R.drawable.testboard,
-                                mImageView.getMeasuredWidth() / IMAGE_DOWNSAMPLE_SCALE,
-                                mImageView.getMeasuredHeight() / IMAGE_DOWNSAMPLE_SCALE));
-                imageBitmap = decodeSampledBitmapFromResource(getResources(),
-                        R.drawable.testboard,
-                        mImageView.getMeasuredWidth() / IMAGE_DOWNSAMPLE_SCALE,
-                        mImageView.getMeasuredHeight() / IMAGE_DOWNSAMPLE_SCALE);
+                if (!testMode) {
+                    dispatchTakePictureIntent();
+                    /*Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                    if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+                        startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
+                    }*/
+                } else {
+                    mImageView.setImageBitmap(
+                            decodeSampledBitmapFromResource(getResources(),
+                                    R.drawable.testboard,
+                                    mImageView.getMeasuredWidth() / IMAGE_DOWNSAMPLE_SCALE,
+                                    mImageView.getMeasuredHeight() / IMAGE_DOWNSAMPLE_SCALE));
+                    imageBitmap = decodeSampledBitmapFromResource(getResources(),
+                            R.drawable.testboard,
+                            mImageView.getMeasuredWidth() / IMAGE_DOWNSAMPLE_SCALE,
+                            mImageView.getMeasuredHeight() / IMAGE_DOWNSAMPLE_SCALE);
+                }
                 if (!seekBar1.isEnabled()) seekBar1.setEnabled(true);
                 if (!seekBar2.isEnabled()) seekBar2.setEnabled(true);
                 if (!seekBar3.isEnabled()) seekBar3.setEnabled(true);
@@ -80,9 +88,9 @@ public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBar
         });
     }
 
-    private void initViews(){
-        mImageView = (ImageView)findViewById(R.id.mImageView);
-        //imageBitmap = BitmapFactory.decodeResource(getResources(),R.drawable.ic_crop_original_black_24dp);
+    private void initViews() {
+        mImageView = (ImageView) findViewById(R.id.mImageView);
+        //imageBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.ic_crop_original_black_24dp);
         //mImageView.setImageBitmap(imageBitmap);
         seekBar1.setOnSeekBarChangeListener(this);
         seekBar2.setOnSeekBarChangeListener(this);
@@ -95,6 +103,7 @@ public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBar
         if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
             Bundle extras = data.getExtras();
             imageBitmap = (Bitmap) extras.get("data");
+            Log.d(TAG, "Bitmap size " + imageBitmap.getWidth() + "," + imageBitmap.getHeight());
             mImageView.setImageBitmap(imageBitmap);
             if (!seekBar1.isEnabled()) seekBar1.setEnabled(true);
             if (!seekBar2.isEnabled()) seekBar2.setEnabled(true);
@@ -120,17 +129,22 @@ public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBar
         if (id == R.id.action_settings) {
             return true;
         }
+        if (id == R.id.action_test) {
+            item.setChecked(!testMode);
+            testMode = item.isChecked();
+            return true;
+        }
 
         return super.onOptionsItemSelected(item);
     }
 
 
-
     @Override
     public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
         Bitmap edited = ricochetAnalyzer.manipulateBitmap(imageBitmap, seekBar1.getProgress(), seekBar2.getProgress(), seekBar3.getProgress());
-        mImageView.setImageBitmap(edited);
-
+        if (edited != null) {
+            mImageView.setImageBitmap(edited);
+        }
     }
 
     @Override
@@ -141,6 +155,70 @@ public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBar
     @Override
     public void onStopTrackingTouch(SeekBar seekBar) {
 
+    }
+
+    private void dispatchTakePictureIntent() {
+        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        // Ensure that there's a camera activity to handle the intent
+        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+            // Create the File where the photo should go
+            File photoFile = null;
+            try {
+                photoFile = createImageFile();
+            } catch (IOException ex) {
+                // Error occurred while creating the File
+                throw new Resources.NotFoundException();
+            }
+            // Continue only if the File was successfully created
+            if (photoFile != null) {
+                Uri photoURI = FileProvider.getUriForFile(this,
+                        "com.example.android.fileprovider",
+                        photoFile);
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
+                startActivityForResult(takePictureIntent, REQUEST_TAKE_PHOTO);
+            }
+        }
+    }
+
+    private File createImageFile() throws IOException {
+        // Create an image file name
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String imageFileName = "JPEG_" + timeStamp + "_";
+        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        File image = File.createTempFile(
+                imageFileName,  /* prefix */
+                ".jpg",         /* suffix */
+                storageDir      /* directory */
+        );
+
+        // Save a file: path for use with ACTION_VIEW intents
+        mCurrentPhotoPath = image.getAbsolutePath();
+        return image;
+    }
+
+    // Android example solution to scaling
+    private void setPic(String mCurrentPhotoPath) {
+        // Get the dimensions of the View
+        int targetW = mImageView.getWidth();
+        int targetH = mImageView.getHeight();
+
+        // Get the dimensions of the bitmap
+        BitmapFactory.Options bmOptions = new BitmapFactory.Options();
+        bmOptions.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(mCurrentPhotoPath, bmOptions);
+        int photoW = bmOptions.outWidth;
+        int photoH = bmOptions.outHeight;
+
+        // Determine how much to scale down the image
+        int scaleFactor = Math.min(photoW/targetW, photoH/targetH);
+
+        // Decode the image file into a Bitmap sized to fill the View
+        bmOptions.inJustDecodeBounds = false;
+        bmOptions.inSampleSize = scaleFactor;
+        bmOptions.inPurgeable = true;
+
+        Bitmap bitmap = BitmapFactory.decodeFile(mCurrentPhotoPath, bmOptions);
+        mImageView.setImageBitmap(bitmap);
     }
 
     public static int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
