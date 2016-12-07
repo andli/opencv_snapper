@@ -12,7 +12,12 @@
         android:orderInCategory="80"
         app:showAsAction="never"
         android:title="Test mode"
-        android:icon="@android:drawable/ic_menu_preferences"
         android:checkable="true"
+        />
+    <item
+        android:id="@+id/action_load"
+        android:orderInCategory="70"
+        app:showAsAction="never"
+        android:title="Load image"
         />
 </menu>

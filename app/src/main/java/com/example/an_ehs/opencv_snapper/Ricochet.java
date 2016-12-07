@@ -27,6 +27,7 @@ import static org.opencv.imgproc.Imgproc.COLOR_BGR2HSV;
 import static org.opencv.imgproc.Imgproc.COLOR_GRAY2BGR;
 import static org.opencv.imgproc.Imgproc.GaussianBlur;
 import static org.opencv.imgproc.Imgproc.HoughLines;
+import static org.opencv.imgproc.Imgproc.HoughLinesP;
 import static org.opencv.imgproc.Imgproc.INTER_CUBIC;
 import static org.opencv.imgproc.Imgproc.MORPH_RECT;
 import static org.opencv.imgproc.Imgproc.RETR_TREE;
@@ -68,8 +69,10 @@ public class Ricochet {
 
     public Bitmap manipulateBitmap(Bitmap bitmap, int value1, int value2, int value3) {
 
-        int val1 = ValMax(value1, 10);
-        int val2 = ValMax(value2, 32);
+        if (bitmap == null) return null;
+
+        int val1 = ValMax(value1, 179);
+        int val2 = ValMax(value2, 255);
         int val3 = ValMax(value3, 255);
         Log.d(TAG, " Filtering with values " + val1 + ", " + val2 + ", " + val3);
         CENTER = new Point(bitmap.getWidth() / 2, bitmap.getHeight() / 2);
@@ -83,7 +86,7 @@ public class Ricochet {
         //src.convertTo(src,-1,1,value);
 
         cvtColor(src, src_hsv, COLOR_BGR2HSV);
-        Core.inRange(src_hsv, new Scalar(107, 0, 0), new Scalar(255, 76, 255), src_thresh);
+        Core.inRange(src_hsv, new Scalar(50, 0, 0), new Scalar(255, 76, 255), src_thresh); //107,0,0
 
         // Improve contrast?
         equalizeHist(src_thresh, src_thresh);
@@ -126,7 +129,7 @@ public class Ricochet {
         // 1, 2, rho, theta,                        threshold, minLineLength, maxLineGap
         if (val1 == 0) val1 = 1;
         Log.d(TAG, "bitmap width: " + bitmap.getWidth());
-        HoughLines(src_cnt, lines, 2, 1.7 * Math.PI / 180, bitmap.getWidth() / 2);//, bitmap.getWidth() / 16, bitmap.getWidth() / 40);
+        HoughLines(src_cnt, lines, 2, 2 * Math.PI / 180, bitmap.getWidth() / 4);//, bitmap.getWidth() / 16, bitmap.getWidth() / 40);
 
         cvtColor(src_cnt, src_cnt, COLOR_GRAY2BGR);
         /*for(int i = 0; i < lines.rows(); i++) {
@@ -206,7 +209,10 @@ public class Ricochet {
 
         }
         else {
-            return null;
+            dst = src_cnt.clone();
+            result = Bitmap.createBitmap(dst.cols(), dst.rows(), Bitmap.Config.ARGB_8888);
+            Utils.matToBitmap(dst, result);
+            return result;
         }
         // Return
         /*dst = src_cnt.clone();
