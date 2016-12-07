@@ -4,8 +4,9 @@
 /.idea/workspace.xml
 /.idea/libraries
 /.idea/modules.xml
+/.idea/misc.xml
 .DS_Store
 /build
 /captures
 .externalNativeBuild
-openCVLibrary310/*
+openCVLibrary310/build/
