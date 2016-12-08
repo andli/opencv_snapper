@@ -119,9 +119,6 @@ public class MainActivity extends AppCompatActivity implements SeekBar.OnSeekBar
             }
             */
 
-
-            /////
-
             InputStream imageStream = null;
             try {
                 imageStream = getContentResolver().openInputStream(imageUri);

@@ -126,10 +126,9 @@ public class Ricochet {
         cvtColor(src_cnt, src_cnt, COLOR_BGR2GRAY);
 
         Mat lines = new Mat();
-        // 1, 2, rho, theta,                        threshold, minLineLength, maxLineGap
         if (val1 == 0) val1 = 1;
         Log.d(TAG, "bitmap width: " + bitmap.getWidth());
-        HoughLines(src_cnt, lines, 2, 2 * Math.PI / 180, bitmap.getWidth() / 4);//, bitmap.getWidth() / 16, bitmap.getWidth() / 40);
+        HoughLines(src_cnt, lines, 2, 4 * Math.PI / 180, Math.round(bitmap.getWidth() / 3.27f));
 
         cvtColor(src_cnt, src_cnt, COLOR_GRAY2BGR);
         /*for(int i = 0; i < lines.rows(); i++) {
